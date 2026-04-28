@@ -18,11 +18,11 @@ $halaman = basename($_SERVER['PHP_SELF']);
       <p>Teknik Sepeda Motor</p>
     </div>
     <nav>
-      <a href="/bengkel/index.php"   class="<?= $halaman==='index.php'  ?'aktif':'' ?>">Dashboard</a>
-      <a href="/bengkel/antrian.php" class="<?= $halaman==='antrian.php'?'aktif':'' ?>">Antrian Servis</a>
-      <a href="/bengkel/mekanik.php" class="<?= $halaman==='mekanik.php'?'aktif':'' ?>">Mekanik</a>
-      <a href="/bengkel/invoice.php" class="<?= $halaman==='invoice.php'?'aktif':'' ?>">Invoice</a>
-      <a href="/bengkel/laporan.php" class="<?= $halaman==='laporan.php'?'aktif':'' ?>">Laporan</a>
+      <a href="/bengkel.tsm/index.php"   class="<?= $halaman==='index.php'  ?'aktif':'' ?>">Dashboard</a>
+      <a href="/bengkel.tsm/antrian.php" class="<?= $halaman==='antrian.php'?'aktif':'' ?>">Antrian Servis</a>
+      <a href="/bengkel.tsm/mekanik.php" class="<?= $halaman==='mekanik.php'?'aktif':'' ?>">Mekanik</a>
+      <a href="/bengkel.tsm/invoice.php" class="<?= $halaman==='invoice.php'?'aktif':'' ?>">Invoice</a>
+      <a href="/bengkel.tsm/laporan.php" class="<?= $halaman==='laporan.php'?'aktif':'' ?>">Laporan</a>
     </nav>
   </aside>
   <main class="konten">

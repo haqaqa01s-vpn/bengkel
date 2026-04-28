@@ -1,6 +1,6 @@
 <?php
 $host     = 'localhost';
-$dbname   = 'bengkel_smk';
+$dbname   = 'bengkel_tsm';
 $username = 'root';
 $password = '';  // XAMPP default: kosong
 

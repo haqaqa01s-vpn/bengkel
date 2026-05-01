@@ -1,5 +1,6 @@
 <?php
 require 'koneksi.php';
+cekRole('admin');  // <-- tambahin ini
 require 'header.php';
 
 $bulan = $_GET['bulan'] ?? date('Y-m');
@@ -12,7 +13,7 @@ $total_servis->execute([$bulan]);
 $total_servis = $total_servis->fetchColumn();
 
 $pendapatan = $pdo->prepare("
-  SELECT COALESCE(SUM(biaya_jasa + biaya_part), 0)
+  SELECT COALESCE(SUM(i.biaya_jasa + i.biaya_part), 0)
   FROM invoice i
   JOIN servis s ON i.servis_id = s.id
   WHERE i.status = 'lunas' AND DATE_FORMAT(s.dibuat, '%Y-%m') = ?
@@ -127,12 +128,16 @@ $max_kinerja = !empty($kinerja) ? $kinerja[0]['jumlah'] : 1;
   <strong style="display:block;margin-bottom:14px">Detail servis bulan <?= date('F Y', strtotime($bulan.'-01')) ?></strong>
   <?php
   $detail = $pdo->prepare("
-    SELECT s.*, p.nama AS nama_pelanggan, m.nama AS nama_mekanik,
-           i.biaya_jasa, i.biaya_part, i.status AS status_bayar
+    SELECT s.*, p.nama AS nama_pelanggan, mk.nama AS nama_mekanik,
+          i.biaya_jasa AS biaya_jasa_invoice, i.biaya_part AS biaya_part_invoice, 
+          i.status AS status_bayar,
+          mot.plat, mot.merk, mot.tipe AS kendaraan, mot.tahun,
+          (SELECT COALESCE(SUM(subtotal), 0) FROM servis_part WHERE servis_id = s.id) AS total_part_servis
     FROM servis s
     JOIN pelanggan p ON s.pelanggan_id = p.id
-    JOIN mekanik m ON s.mekanik_id = m.id
+    JOIN mekanik mk ON s.mekanik_id = mk.id
     LEFT JOIN invoice i ON i.servis_id = s.id
+    LEFT JOIN motor mot ON s.motor_id = mot.id
     WHERE DATE_FORMAT(s.dibuat, '%Y-%m') = ?
     ORDER BY s.dibuat DESC
   ");
@@ -141,11 +146,15 @@ $max_kinerja = !empty($kinerja) ? $kinerja[0]['jumlah'] : 1;
   ?>
   <table>
     <thead>
-      <tr><th>Tanggal</th><th>Pelanggan</th><th>Motor</th><th>Layanan</th><th>Mekanik</th><th>Tipe</th><th>Total</th><th>Bayar</th></tr>
+      <tr><th>Tanggal</th><th>Pelanggan</th><th>Motor</th><th>Layanan</th><th>Tipe</th><th>Mekanik</th><th>Total</th><th>Bayar</th></tr>
     </thead>
     <tbody>
       <?php foreach($detail as $d):
-        $total = ($d['biaya_jasa'] ?? 0) + ($d['biaya_part'] ?? 0);
+        if ($d['status_bayar']) {
+            $total = ($d['biaya_jasa_invoice'] ?? 0) + ($d['biaya_part_invoice'] ?? 0);
+        } else {
+            $total = ($d['biaya_jasa'] ?? 0) + ($d['total_part_servis'] ?? 0);
+        }
       ?>
       <tr>
         <td style="font-size:12px"><?= date('d M', strtotime($d['dibuat'])) ?></td>

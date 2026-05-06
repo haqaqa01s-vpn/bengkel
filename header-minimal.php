@@ -39,7 +39,7 @@ $user = $_SESSION['user'];
                     <?= $user['role'] === 'admin' ? '🔑 Administrator' : '💳 Kasir' ?>
                 </span>
             </div>
-            <a href="/bengkel.tsm/antrian.php" class="btn" style="font-size:12px;text-decoration:none;">
+            <a href="/bengkel.tsm/index.php" class="btn" style="font-size:12px;text-decoration:none;">
                 ← Kembali
             </a>
         </div>

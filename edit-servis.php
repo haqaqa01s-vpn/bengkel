@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update'])) {
         }
 
         $pdo->commit();
-        header('Location: antrian.php?pesan=update');
+        header('Location: index.php?pesan=update');
         exit;
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -356,7 +356,7 @@ foreach ($part_list as $p) {
         <button type="button" onclick="tambahCustomPart()" class="btn btn-sm" style="margin-top:8px;background:#fef3c7;color:#92400e;border-color:#fcd34d">+ Tambah Part Custom</button>
 
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:2px solid #f3f4f6">
-            <a href="antrian.php" class="btn">Batal</a>
+            <a href="index.php" class="btn">Batal</a>
             <button type="submit" name="update" class="btn btn-primary">💾 Simpan Perubahan</button>
         </div>
     </form>

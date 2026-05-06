@@ -56,7 +56,7 @@ $invoice_belum = $pdo->query("SELECT COUNT(*) FROM invoice WHERE status!='lunas'
                 <span class="nav-badge"><?= $antrian_menunggu ?></span>
                 <?php endif; ?>
                 <span class="nav-icon">🔧</span>
-                <span class="nav-label">Antrian Servis</span>
+                <span class="nav-label">Riwayat Servis</span>
             </a>
             <a href="/bengkel.tsm/invoice.php" class="nav-card <?= $halaman==='invoice.php' ? 'aktif' : '' ?>">
                 <?php if($invoice_belum > 0): ?>

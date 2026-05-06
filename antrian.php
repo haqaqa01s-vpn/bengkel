@@ -2,103 +2,26 @@
 require 'koneksi.php';
 require 'header.php';
 
-// Proses tambah servis baru
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah'])) {
-    try {
-        $pdo->beginTransaction();
-
-        // Cek / tambah pelanggan
-        $cek = $pdo->prepare("SELECT id FROM pelanggan WHERE nama=? AND telepon=?");
-        $cek->execute([$_POST['nama'], $_POST['telepon']]);
-        $pel = $cek->fetch();
-
-        if ($pel) {
-            $pel_id = $pel['id'];
-        } else {
-            $ins = $pdo->prepare("INSERT INTO pelanggan (nama, telepon, tipe, kelas) VALUES (?,?,?,?)");
-            $ins->execute([
-                $_POST['nama'],
-                $_POST['telepon'],
-                $_POST['tipe_pelanggan'],
-                $_POST['kelas'] ?? null
-            ]);
-            $pel_id = $pdo->lastInsertId();
-        }
-
-        // Ambil harga jasa dari master
-        $harga_jasa = 0;
-        if (!empty($_POST['jasa_id'])) {
-            $j = $pdo->prepare("SELECT harga FROM jasa_servis WHERE id=?");
-            $j->execute([$_POST['jasa_id']]);
-            $harga_jasa = $j->fetchColumn();
-        }
-
-        // Hitung km servis selanjutnya
-        $km_sekarang = !empty($_POST['km_sekarang']) ? intval($_POST['km_sekarang']) : null;
-        $km_selanjutnya = $km_sekarang ? $km_sekarang + 3000 : null;
-
-        $stmt = $pdo->prepare("INSERT INTO servis
-            (pelanggan_id, mekanik_id, kendaraan, plat, merk, tahun, km_sekarang, km_servis_selanjutnya, no_rangka, no_mesin, keluhan, layanan, jasa_id, biaya_jasa, tipe_pelanggan)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        $stmt->execute([
-            $pel_id,
-            $_POST['mekanik_id'],
-            $_POST['tipe_motor'],
-            strtoupper($_POST['plat']),
-            $_POST['merk'],
-            $_POST['tahun'] ?: null,
-            $km_sekarang,
-            $km_selanjutnya,
-            $_POST['no_rangka'] ?: null,
-            $_POST['no_mesin'] ?: null,
-            $_POST['keluhan'],
-            $_POST['layanan'],
-            $_POST['jasa_id'] ?: null,
-            $harga_jasa,
-            $_POST['tipe_pelanggan']
-        ]);
-        $servis_id = $pdo->lastInsertId();
-
-        // Catat sparepart yang dipakai & kurangi stok
-        if (!empty($_POST['part_id']) && is_array($_POST['part_id'])) {
-            $stmt_part = $pdo->prepare("INSERT INTO servis_part (servis_id, part_id, jumlah, harga_satuan, subtotal) VALUES (?,?,?,?,?)");
-            $stmt_stok = $pdo->prepare("UPDATE suku_cadang SET stok = stok - ? WHERE id = ? AND stok >= ?");
-            $stmt_harga = $pdo->prepare("SELECT harga_jual, stok FROM suku_cadang WHERE id=?");
-
-            foreach ($_POST['part_id'] as $i => $part_id) {
-                if (empty($part_id)) continue;
-                $jumlah = max(1, intval($_POST['part_jumlah'][$i] ?? 1));
-
-                $stmt_harga->execute([$part_id]);
-                $part = $stmt_harga->fetch(PDO::FETCH_ASSOC);
-
-                if ($part && $part['stok'] >= $jumlah) {
-                    $subtotal = $part['harga_jual'] * $jumlah;
-                    $stmt_part->execute([$servis_id, $part_id, $jumlah, $part['harga_jual'], $subtotal]);
-                    $stmt_stok->execute([$jumlah, $part_id, $jumlah]);
-                }
-            }
-        }
-
-        $pdo->commit();
-        header('Location: antrian.php?pesan=berhasil');
-        exit;
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        $error = "Gagal: " . $e->getMessage();
-    }
-}
-
-// Proses ubah status
+// Ubah status (dari dashboard)
 if (isset($_GET['ubah_status'])) {
     $stmt = $pdo->prepare("UPDATE servis SET status=? WHERE id=?");
     $stmt->execute([$_GET['status'], $_GET['ubah_status']]);
-    header('Location: antrian.php');
+    $redirect = $_GET['redirect'] ?? 'index';
+    header('Location: ' . ($redirect === 'antrian' ? 'antrian.php' : 'index.php'));
     exit;
 }
 
-// Ambil data antrian
-$antrian = $pdo->query("
+// Pagination
+$halaman = isset($_GET['halaman']) ? max(1, intval($_GET['halaman'])) : 1;
+$per_halaman = 6;
+$offset = ($halaman - 1) * $per_halaman;
+
+// Hitung total data
+$total_data = $pdo->query("SELECT COUNT(*) FROM servis WHERE status = 'selesai'")->fetchColumn();
+$total_halaman = ceil($total_data / $per_halaman);
+
+// Ambil data sesuai halaman
+$stmt = $pdo->query("
     SELECT s.*, p.nama AS nama_pelanggan, mk.nama AS nama_mekanik, j.nama_jasa,
            mot.plat, mot.merk, mot.tipe AS kendaraan, mot.tahun
     FROM servis s
@@ -106,80 +29,106 @@ $antrian = $pdo->query("
     JOIN mekanik mk ON s.mekanik_id = mk.id
     LEFT JOIN jasa_servis j ON s.jasa_id = j.id
     LEFT JOIN motor mot ON s.motor_id = mot.id
+    WHERE s.status = 'selesai'
     ORDER BY s.dibuat DESC
-")->fetchAll(PDO::FETCH_ASSOC);
-
-// Data untuk dropdown
-$mekanik = $pdo->query("SELECT id, nama FROM mekanik ORDER BY nama")->fetchAll(PDO::FETCH_ASSOC);
-$jasa_list = $pdo->query("SELECT * FROM jasa_servis ORDER BY kategori, nama_jasa")->fetchAll(PDO::FETCH_ASSOC);
-$part_list = $pdo->query("SELECT * FROM suku_cadang WHERE stok > 0 ORDER BY kategori, nama_part")->fetchAll(PDO::FETCH_ASSOC);
-
-// Grup jasa per kategori
-$jasa_grouped = [];
-foreach ($jasa_list as $j) {
-    $jasa_grouped[$j['kategori']][] = $j;
-}
-
-// Grup part per kategori
-$part_grouped = [];
-foreach ($part_list as $p) {
-    $part_grouped[$p['kategori']][] = $p;
-}
+    LIMIT $per_halaman OFFSET $offset
+");
+$riwayat = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <div class="page-header">
-    <h1>Antrian Servis</h1>
-    <a href="form-servis.php" class="btn btn-primary">
-        + Daftar Servis Baru
-    </a>
+    <h1>📋 Riwayat Servis</h1>
+    <a href="form-servis.php" class="btn btn-primary">➕ Servis Baru</a>
 </div>
 
 <?php if(isset($_GET['pesan'])): ?>
 <div style="background:#dcfce7;color:#166534;padding:10px 14px;border-radius:8px;margin-bottom:16px">
-    Servis berhasil didaftarkan!
-</div>
-<?php endif; ?>
-
-<?php if(isset($error)): ?>
-<div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;margin-bottom:16px">
-    <?= $error ?>
+    <?= $_GET['pesan'] === 'berhasil' ? '✅ Servis berhasil!' : '✅ Servis diupdate!' ?>
 </div>
 <?php endif; ?>
 
 <div class="kartu">
+    <?php if (!empty($riwayat)): ?>
     <table>
         <thead>
-            <tr><th>Pelanggan</th><th>Kendaraan</th><th>Jasa</th><th>Mekanik</th><th>Biaya</th><th>Status</th><th>Aksi</th></tr>
+            <tr>
+                <th>Tanggal</th>
+                <th>Pelanggan</th>
+                <th>Kendaraan</th>
+                <th>Jasa</th>
+                <th>Mekanik</th>
+                <th>Biaya</th>
+                <th>Status</th>
+            </tr>
         </thead>
         <tbody>
-            <?php foreach($antrian as $a): ?>
+            <?php foreach($riwayat as $r): ?>
             <tr>
-                <td><?= htmlspecialchars($a['nama_pelanggan']) ?></td>
+                <td style="font-size:12px;white-space:nowrap"><?= date('d/m/Y', strtotime($r['dibuat'])) ?></td>
+                <td><?= htmlspecialchars($r['nama_pelanggan']) ?></td>
                 <td>
-                    <span style="font-weight:500"><?= $a['merk'] ?> <?= $a['kendaraan'] ?></span>
-                    <div style="font-size:11px;color:#888"><?= $a['plat'] ?> · <?= $a['tahun'] ?></div>
+                    <span style="font-weight:500"><?= htmlspecialchars($r['merk'] ?? '') ?> <?= htmlspecialchars($r['kendaraan'] ?? '') ?></span>
+                    <div style="font-size:11px;color:#888"><?= htmlspecialchars($r['plat'] ?? '-') ?> · <?= $r['tahun'] ?? '-' ?></div>
                 </td>
-                <td style="font-size:12px"><?= htmlspecialchars($a['nama_jasa'] ?? $a['layanan']) ?></td>
-                <td><?= htmlspecialchars($a['nama_mekanik']) ?></td>
+                <td style="font-size:12px"><?= htmlspecialchars($r['nama_jasa'] ?? $r['layanan'] ?? '-') ?></td>
+                <td><?= htmlspecialchars($r['nama_mekanik']) ?></td>
                 <td style="font-weight:500;font-size:12px">
-                    <?= $a['biaya_jasa'] > 0 ? 'Rp '.number_format($a['biaya_jasa'],0,',','.') : '-' ?>
+                    <?= $r['biaya_jasa'] > 0 ? 'Rp '.number_format($r['biaya_jasa'],0,',','.') : '-' ?>
                 </td>
-                <td><span class="badge badge-<?= $a['status'] ?>"><?= ucfirst($a['status']) ?></span></td>
-                <td style="display:flex;gap:4px;flex-wrap:wrap">
-                    <?php if($a['status'] === 'menunggu'): ?>
-                        <a href="edit-servis.php?id=<?= $a['id'] ?>" class="btn btn-sm" style="background:#fef3c7;color:#92400e">✏️ Edit</a>
-                        <a href="?ubah_status=<?= $a['id'] ?>&status=proses" class="btn btn-sm btn-primary">▶ Mulai</a>
-                    <?php elseif($a['status'] === 'proses'): ?>
-                        <a href="edit-servis.php?id=<?= $a['id'] ?>" class="btn btn-sm" style="background:#fef3c7;color:#92400e">✏️ Edit</a>
-                        <a href="?ubah_status=<?= $a['id'] ?>&status=selesai" class="btn btn-sm">✓ Selesai</a>
-                    <?php else: ?>
-                        <span style="font-size:11px;color:#888">✓ Done</span>
-                    <?php endif; ?>
+                <td>
+                    <span class="badge badge-selesai">✓ Selesai</span>
+                    <a href="detail-servis.php?id=<?= $r['id'] ?>" class="btn btn-sm" style="margin-left:4px;background:#f3f4f6" title="Detail">🔍</a>
                 </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+
+    <!-- Pagination -->
+    <?php if ($total_halaman > 1): ?>
+    <div style="display:flex;justify-content:center;align-items:center;gap:6px;margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0">
+        
+        <?php if ($halaman > 1): ?>
+        <a href="?halaman=<?= $halaman - 1 ?>" class="btn btn-sm">← Prev</a>
+        <?php endif; ?>
+
+        <?php
+        // Tampilkan nomor halaman
+        $start = max(1, $halaman - 2);
+        $end = min($total_halaman, $halaman + 2);
+        
+        if ($start > 1): ?>
+            <a href="?halaman=1" class="btn btn-sm">1</a>
+            <?php if ($start > 2): ?>
+            <span style="color:#ccc">...</span>
+            <?php endif; ?>
+        <?php endif; ?>
+
+        <?php for ($i = $start; $i <= $end; $i++): ?>
+            <a href="?halaman=<?= $i ?>" class="btn btn-sm <?= $i === $halaman ? 'btn-primary' : '' ?>"><?= $i ?></a>
+        <?php endfor; ?>
+
+        <?php if ($end < $total_halaman): ?>
+            <?php if ($end < $total_halaman - 1): ?>
+            <span style="color:#ccc">...</span>
+            <?php endif; ?>
+            <a href="?halaman=<?= $total_halaman ?>" class="btn btn-sm"><?= $total_halaman ?></a>
+        <?php endif; ?>
+
+        <?php if ($halaman < $total_halaman): ?>
+        <a href="?halaman=<?= $halaman + 1 ?>" class="btn btn-sm">Next →</a>
+        <?php endif; ?>
+
+    </div>
+    <?php endif; ?>
+
+    <?php else: ?>
+    <div style="text-align:center;padding:40px;color:#888">
+        <p style="font-size:48px;margin-bottom:12px">📭</p>
+        <p style="font-size:15px">Belum ada riwayat servis yang selesai.</p>
+        <p style="font-size:12px;margin-top:4px">Servis akan muncul di sini setelah statusnya diubah menjadi "Selesai".</p>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require 'footer.php'; ?>

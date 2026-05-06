@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah'])) {
         }
 
         $pdo->commit();
-        header('Location: antrian.php?pesan=berhasil');
+        header('Location: index.php?pesan=berhasil');
         exit;
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -296,7 +296,7 @@ $pelanggan_json = json_encode($pelanggan_list);
             <div class="form-row">
                 <div class="form-group">
                     <label>Jenis Layanan (Deskripsi)</label>
-                    <input name="layanan" placeholder="Tune Up, Ganti Oli, dll" required>
+                    <input name="layanan" placeholder="Tune Up, Ganti Oli, dll">
                 </div>
                 <div class="form-group">
                     <label>Paket Jasa (Master)</label>
@@ -377,7 +377,7 @@ $pelanggan_json = json_encode($pelanggan_list);
 
         <!-- Submit -->
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:2px solid #f3f4f6">
-            <a href="antrian.php" class="btn">Batal</a>
+            <a href="index.php" class="btn">Batal</a>
             <button type="submit" name="tambah" class="btn btn-primary">✅ Daftar Servis</button>
         </div>
     </form>

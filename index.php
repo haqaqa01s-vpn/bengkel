@@ -129,39 +129,6 @@ $notif_servis = $pdo->query("
     <?php endif; ?>
 </div>
 
-<?php if (!empty($notif_servis)): ?>
-<!-- Pengingat Servis Berkala -->
-<div class="kartu">
-    <div class="page-header" style="margin-bottom:12px">
-        <strong>⏰ Pengingat Servis Berkala</strong>
-        <a href="laporan.php" class="btn btn-sm">Lihat Semua</a>
-    </div>
-    <table>
-        <thead>
-            <tr><th>Pelanggan</th><th>Motor</th><th>KM Terakhir</th><th>Servis di KM</th><th>Aksi</th></tr>
-        </thead>
-        <tbody>
-            <?php foreach($notif_servis as $ns): ?>
-            <tr>
-                <td><?= htmlspecialchars($ns['nama_pelanggan']) ?></td>
-                <td>
-                    <?= htmlspecialchars($ns['merk'] ?? '') ?> <?= htmlspecialchars($ns['kendaraan'] ?? '') ?>
-                    <div style="font-size:11px;color:#888"><?= htmlspecialchars($ns['plat'] ?? '') ?></div>
-                </td>
-                <td><?= number_format($ns['km_sekarang'], 0, ',', '.') ?> KM</td>
-                <td><span style="background:#fff7ed;color:#c2410c;padding:3px 10px;border-radius:20px;font-weight:500;font-size:12px"><?= number_format($ns['km_servis_selanjutnya'], 0, ',', '.') ?> KM</span></td>
-                <td>
-                    <?php if($ns['telepon']): ?>
-                    <a href="https://wa.me/62<?= ltrim($ns['telepon'], '0') ?>?text=Halo%20<?= urlencode($ns['nama_pelanggan']) ?>%2C%20motor%20<?= urlencode($ns['plat']) ?>%20Anda%20sudah%20saatnya%20servis%20berkala.%20Silakan%20datang%20ke%20Bengkel%20TEFA%20TSM." target="_blank" class="btn btn-sm" style="background:#25d366;color:#fff">📱 WA</a>
-                    <?php else: ?>
-                    <span style="color:#888;font-size:11px">-</span>
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-</div>
-<?php endif; ?>
+
 
 <?php require 'footer.php'; ?>

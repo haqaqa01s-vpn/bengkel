@@ -311,9 +311,9 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `password`, `nama_lengkap`, `role`, `created_at`) VALUES
-(1, 'admin', '0192023a7bbd73250516f069df18b500', 'Administrator TEFA', 'admin', '2026-04-29 16:01:13'),
-(2, 'kasir1', 'de28f8f7998f23ab4194b51a6029416f', 'Kasir Satu', 'kasir', '2026-04-29 16:01:13');
+INSERT INTO `users` (`id`, `username`, `password`, `nama_lengkap`, `role`) VALUES
+(1, 'admin', 'password', 'Administrator TEFA', 'admin'),
+(2, 'kasir1', 'password', 'Kasir Satu', 'kasir');
 
 --
 -- Indexes for dumped tables
